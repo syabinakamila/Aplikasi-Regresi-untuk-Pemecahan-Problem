@@ -1,0 +1,64 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
+from scipy.interpolate import make_interp_spline, BSpline
+
+# Data diambil 100 teratas dari https://www.kaggle.com/datasets/nikhil7280/student-performance-multiple-linear-regression, yaitu kolom Hours Studied,  Sample Question Papers Practiced, dan Performance Index.
+hours_studied = np.array([7, 4, 8, 5, 7, 3, 7, 8, 5, 4, 8, 8, 3, 6, 5, 2, 8, 6, 2, 5, 1, 6, 9, 1, 3, 7, 4, 9, 3, 5, 3, 7, 2, 4, 9, 7, 5, 2, 2, 4, 2, 6, 6, 4, 6, 2, 2, 4, 8, 8, 5, 2, 6, 1, 7, 9, 8, 5, 8, 9, 8, 5, 1, 9, 7, 9, 7, 8, 1, 8, 8, 5, 3, 3, 1, 8, 3, 3, 1, 5, 7, 9, 8, 7, 9, 8, 2, 1, 8, 8, 7, 7, 8, 5, 3, 8, 6, 3, 3, 1, 8])
+scores = np.array([99, 82, 51, 52, 75, 78, 73, 45, 77, 89, 91, 79, 47, 47, 79, 72, 73, 73, 54, 75, 99, 96, 74, 85, 61, 62, 79, 84, 94, 90, 61, 44, 70, 52, 67, 97, 59, 72, 46, 77, 76, 43, 73, 81, 61, 44, 89, 81, 62, 68, 54, 40, 93, 69, 68, 59, 72, 80, 83, 75, 99, 61, 82, 97, 92, 64, 64, 88, 60, 48, 94, 87, 77, 61, 82, 62, 88, 43, 68, 54, 40, 93, 69, 68, 59, 72, 80, 83, 75, 99, 61, 82, 97, 92, 64, 64, 88, 60, 48, 94, 87, 77, 61, 82, 62, 88, 43, 68])
+
+# Memotong entri yang berlebihan di scores
+scores = scores[:len(hours_studied)]
+
+# Reshape hours_studied menjadi 2D array
+hours_studied = hours_studied.reshape(-1, 1)
+
+# Model linear
+linear_model = LinearRegression()
+linear_model.fit(hours_studied, scores)
+linear_predicted_scores = linear_model.predict(hours_studied)
+
+# Model pangkat sederhana
+poly_features = PolynomialFeatures(degree=2)
+hours_studied_poly = poly_features.fit_transform(hours_studied)
+poly_model = LinearRegression()
+poly_model.fit(hours_studied_poly, scores)
+poly_predicted_scores = poly_model.predict(hours_studied_poly)
+
+# Metode spline (bentuk lanjar)
+# Mengurutkan dan memastikan tidak ada duplikat
+x_unique, indices = np.unique(hours_studied.flatten(), return_index=True)
+x_sorted = hours_studied.flatten()[indices]
+scores_sorted = scores.flatten()[indices]
+
+# Membuat spline
+spline = make_interp_spline(x_sorted, scores_sorted, k=3)
+x_new = np.linspace(x_sorted.min(), x_sorted.max(), 300)
+scores_smooth = spline(x_new)
+
+# Plot grafik
+plt.figure(figsize=(10, 6))
+plt.scatter(hours_studied, scores, color='blue', label='Data')
+plt.plot(hours_studied, linear_predicted_scores, color='red', label='Linear Regression')
+plt.plot(hours_studied, poly_predicted_scores, color='green', label='Polynomial Regression')
+plt.plot(x_new, scores_smooth, color='purple', label='Spline')
+plt.title('Hours Studied vs Scores')
+plt.xlabel('Hours Studied')
+plt.ylabel('Scores')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+# Mengonversi scores_smooth menjadi array yang memiliki jumlah elemen yang sama dengan scores_sorted
+scores_smooth_resized = scores_smooth[:len(scores_sorted)]
+
+# Hitung galat RMS
+rms_linear = np.sqrt(np.mean((scores - linear_predicted_scores) ** 2))
+rms_poly = np.sqrt(np.mean((scores - poly_predicted_scores) ** 2))
+rms_spline = np.sqrt(np.mean((scores_sorted - scores_smooth_resized) ** 2))
+
+print("RMS Linear Regression:", rms_linear)
+print("RMS Polynomial Regression:", rms_poly)
+print("RMS Spline:", rms_spline)
